@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import time
 import hardware
+import hooks
 import image_data
 import tempfile
 import os
@@ -20,7 +21,8 @@ class Paperang_Printer:
             self.printer_hardware.sendImageToBt(image_data.sirius(path))
 
 if __name__ == '__main__':
-    mmj=Paperang_Printer()
+    hooks = hooks.Hooks()
+    mmj = Paperang_Printer()
     # `sirius-client` will write to this folder
     tmpdir = os.path.join(tempfile.gettempdir(), 'sirius-client')
     Path(tmpdir).mkdir(parents=True, exist_ok=True)
@@ -28,4 +30,6 @@ if __name__ == '__main__':
     for changes in watch(tmpdir):
         file = changes.pop()[1] 
         print("Printing " + file)
+
+        hooks.run_hooks()
         mmj.print_sirius_image(file)
