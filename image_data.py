@@ -33,30 +33,30 @@ def im2binimage(im, conversion="threshold"):
         fixed_width = config.width
     if (len(im.shape) != 2):
         im = ski.color.rgb2gray(im)
-    im = ski.transform.resize(im, (round( fixed_width /im.shape[1]  * im.shape[0]), fixed_width))
+    im = ski.transform.resize(im, (round(fixed_width / im.shape[1] * im.shape[0]), fixed_width))
     if conversion == "threshold":
-        ret = (im < ski.filters.threshold_li(im)).astype(int)
+        ret = (im > ski.filters.threshold_li(im)).astype(int)  # Invert threshold logic
     elif conversion == "edge":
-        ret = 1- (1 - (ski.feature.canny(im, sigma=2)))
+        ret = (ski.feature.canny(im, sigma=2)).astype(int)  # Ensure edges are 1
     else:
         raise ValueError("Unsupported conversion method")
     return ret
 
 # this is straight from https://github.com/tgray/hyperdither
 @numba.jit
-def dither(num, thresh = 127):
-    derr = np.zeros(num.shape, dtype=int)
+def dither(num, thresh=127):
+    derr = np.zeros(num.shape, dtype=np.int32)  # Use np.int32 or np.int64
 
     div = 8
     for y in range(num.shape[0]):
         for x in range(num.shape[1]):
-            newval = derr[y,x] + num[y,x]
+            newval = derr[y, x] + num[y, x]
             if newval >= thresh:
                 errval = newval - 255
-                num[y,x] = 1.
+                num[y, x] = 1.0  # Black
             else:
                 errval = newval
-                num[y,x] = 0.
+                num[y, x] = 0.0  # White
             if x + 1 < num.shape[1]:
                 derr[y, x + 1] += errval / div
                 if x + 2 < num.shape[1]:
@@ -64,57 +64,36 @@ def dither(num, thresh = 127):
             if y + 1 < num.shape[0]:
                 derr[y + 1, x - 1] += errval / div
                 derr[y + 1, x] += errval / div
-                if y + 2< num.shape[0]:
+                if y + 2 < num.shape[0]:
                     derr[y + 2, x] += errval / div
                 if x + 1 < num.shape[1]:
                     derr[y + 1, x + 1] += errval / div
-    return num[::-1,:] * 255
+    return num[::-1, :] * 255
 
 def im2binimage2(im):
     basewidth = 384
-    # resizer = pilkit.processors.ResizeToFit(fixed_width)
-    # import in B&W, probably does not matter
     img = Image.open(im).convert('L')
-    # img = Image.open(im)
-    # img.show()
     
-    wpercent = (basewidth/float(img.size[0]))
-    hsize = int((float(img.size[1])*float(wpercent)))
-    img = img.resize((basewidth,hsize), Image.ANTIALIAS)
-    # img.save('test.pgm', format="PPM")
-    # os.system('pamditherbw -atkinson test.pgm > test2.pgm')
-    # os.system('pamtopnm <test2.pgm >test3.pbm')
-    # img2 = Image.open('/Users/ktamas/Prog/python-paperang/test3.pbm')
-    # img2 = Image.open('test3.pbm').convert('1')
-    # img2.show()
-    # os.system('')
+    wpercent = (basewidth / float(img.size[0]))
+    hsize = int((float(img.size[1]) * float(wpercent)))
+    img = img.resize((basewidth, hsize), Image.Resampling.LANCZOS)
 
-    # img.show()
-    # resize to the size paperang needs
-    # new_img = resizer.process(img)
-    # new_img.show()
-    # do atkinson dithering
-    # s = atk.atk(img.size[0], img.size[1], img.tobytes())
-    # o = Image.frombytes('L', img.size, s)
-    # o = Image.fromstring('L', img.size, s)
-
-    m = np.array(img)[:,:]
+    m = np.array(img)[:, :]
     m2 = dither(m)
-    # out = Image.fromarray(m2[::-1,:]).convert('1')
-    out = Image.fromarray(m2[::-1,:])
-    out.show()
-    # the ditherer is stupid and does not make black and white images, just... almost so this fixes that
+    
+    # Convert the array to uint8 before creating the image
+    m2 = m2.astype(np.uint8)
+    out = Image.fromarray(m2[::-1, :])
+    # out.show()
+
     enhancer = ImageEnhance.Contrast(out)
     enhanced_img = enhancer.enhance(4.0)
-    enhanced_img.show()
-    # now convert it to true black and white
-    # blackandwhite_img = enhanced_img.convert('1')
-    # blackandwhite_img.show()
+    # enhanced_img.show()
+
     np_img = np.array(enhanced_img).astype(int)
-    # flipping the ones and zeros
-    np_img[np_img == 1] = 100
-    np_img[np_img == 0] = 1
-    np_img[np_img == 100] = 0
+    
+    # Ensure np_img contains only 0 and 1
+    np_img = (np_img < 127).astype(int)  # Invert binary logic here
 
     return binimage2bitstream(np_img)
 
