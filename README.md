@@ -55,56 +55,56 @@ mmj.sendImageToBt(img)
 mmj.disconnect()
 ```
 
-### 其他杂项
+### Other Features
 
-`registerCrcKeyToBt(key=123456)` 更改通信CRC32 KEY(不太懂这么做是为了啥,讲道理监听到这个包就能拿到key的)
+`registerCrcKeyToBt(key=123456)` Change the communication CRC32 KEY (not sure why this is necessary, logically, listening to this packet would allow you to get the key).
 
-`sendPaperTypeToBt(paperType=0)` 更改纸张类型(疯狂卖纸呢)
+`sendPaperTypeToBt(paperType=0)` Change the paper type
 
-`sendPowerOffTimeToBt(poweroff_time=0)` 更改自动关机时间
+`sendPowerOffTimeToBt(poweroff_time=0)` Change the auto power-off time.
 
-`sendSelfTestToBt()` 打印自检页面
+`sendSelfTestToBt()` Print a self-test page.
 
-`sendDensityToBt(density)` 设置打印密度
+`sendDensityToBt(density)` Set the print density.
 
-`sendFeedLineToBt(length)` 控制打印完后的padding
+`sendFeedLineToBt(length)`  Control the padding after printing.
 
-`queryBatteryStatus()` 查询剩余电量
+`queryBatteryStatus()` Query the remaining battery level.
 
-`queryDensity()` 查询打印密度
+`queryDensity()` Query the print density.
 
-`sendFeedToHeadLineToBt(length)` 不太懂和 `sendFeedLineToBt` 有什么区别，但是看起来都是在打印后调用的。
+`sendFeedToHeadLineToBt(length)` Not sure how this differs from `sendFeedLineToBt` , but it seems to be called after printing as well.
 
-`queryPowerOffTime()` 查询自动关机时间
+`queryPowerOffTime()` Query the auto power-off time.
 
-`querySNFromBt()` 查询设备SN
+`querySNFromBt()` Query the device's serial number.
 
-其实还有挺多操作的，有兴趣的看着`const.py`猜一猜好了。
+There are actually quite a few operations. If you're interested, you can look at `const.py` and guess what they do.
 
-### 图像工具
+### Image Tools
 
-`ImageConverter.image2bmp(path)` 任意图像到可供打印的二进制数据转换
+`ImageConverter.image2bmp(path)` Convert any image to binary data suitable for printing.
  
-`TextConverter.text2bmp(text)` 指定文字到可供打印的二进制数据转换
+`TextConverter.text2bmp(text)` Convert specified text to binary data suitable for printing.
 
-### 微信公众平台工具
+### WeChat Public Platform Tools
 
-两个小脚本，用来实现发送图片给微信公众号后自动打印。
+Two small scripts to implement automatic printing after sending an image to a WeChat public account.
 
-`wechat.php` 用于VPS接收腾讯数据，默认只允许指定用户打印。
+`wechat.php` Used on a VPS to receive data from Tencent. By default, only specified users are allowed to print.
 
-`printer_server.py` 放置于树莓派等有蓝牙的靠近喵喵机的机器上运行，可以使用`tinc`等建立VPN以供VPS直接访问。
+`printer_server.py` Run on a Raspberry Pi or other Bluetooth-enabled machine near the Paperang. You can use `tinc` or similar to establish a VPN for the VPS to directly access it.
 
-### 吐槽
+### Complaints
 
-这玩意就不能增加一个多次打印的功能吗？以较低温度多次打印再走纸，应该可以实现打印灰度图的。
+Why can't this thing have a multi-print feature? Printing at a lower temperature multiple times and then advancing the paper should allow for grayscale printing.
 
-逆了好久的固件也没搞出来啥东西，真是菜。希望有大佬能告诉我一点人生的经验。
+I've reverse-engineered the firmware for a long time but haven't figured out much. I'm really bad at this. I hope some expert can give me some life advice.
 
-顺便丢两个芯片型号: `NUC123LD4BN0`, `STM32F071CBU6`，似乎是Cortex-M0。
+By the way, here are two chip models: `NUC123LD4BN0`, `STM32F071CBU6`, which seem to be Cortex-M0.
 
-PS: 本代码仅供非盈利用途，如用于商业用途请另请高明。
+PS: This code is for non-commercial use only. If used for commercial purposes, please consult an expert.
 
-### Acknowledgement 致谢
+### Acknowledgement
 Thanks for all the reverse engineering work done by the original author of this project.
 
