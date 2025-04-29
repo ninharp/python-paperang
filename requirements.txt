@@ -1,8 +1,6 @@
 cython
 numpy
-pybluez
 scikit-image
 scipy
 numba
 pilkit
-watchgod
