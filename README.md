@@ -81,20 +81,6 @@ mmj.disconnect()
 
 There are actually quite a few operations. If you're interested, you can look at `const.py` and guess what they do.
 
-### Image Tools
-
-`ImageConverter.image2bmp(path)` Convert any image to binary data suitable for printing.
- 
-`TextConverter.text2bmp(text)` Convert specified text to binary data suitable for printing.
-
-### WeChat Public Platform Tools
-
-Two small scripts to implement automatic printing after sending an image to a WeChat public account.
-
-`wechat.php` Used on a VPS to receive data from Tencent. By default, only specified users are allowed to print.
-
-`printer_server.py` Run on a Raspberry Pi or other Bluetooth-enabled machine near the Paperang. You can use `tinc` or similar to establish a VPN for the VPS to directly access it.
-
 ### Complaints
 
 Why can't this thing have a multi-print feature? Printing at a lower temperature multiple times and then advancing the paper should allow for grayscale printing.
