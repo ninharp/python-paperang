@@ -9,8 +9,6 @@ Required debian packages: `libbluetooth-dev libhidapi-dev libatlas-base-dev pyth
 
 Python Modules: install with `pip3 install -r requirements.txt`
 
-### macOS instructions
-
 #### Set up and test your printer
 You'll need python3 installed; check if you have it by typing `which python3` in Terminal or your favorite console application.
 
@@ -27,15 +25,6 @@ python3 testprint.py
 If you've never paired your Paperang with your computer, you might get a dialog asking you to allow the Paperang to pair with your system. Click `connect`. You should only have to do this once.
 
 5. If the test print was successful, the script will print out your device's MAC address on the console, as well as on the printer. You can enter that into the script to connect to your Paperang directly, avoiding the wait time for scanning for printers.
-
-If you need to look up your Paperang's MAC address quickly, you can use the `system_profiler` command to output information on all paired bluetooth devices:
-```sh
-system_profiler SPBluetoothDataType
-```
-
-#### Print Little Printer data
-
-
 
 ### Establishing a connection
 
