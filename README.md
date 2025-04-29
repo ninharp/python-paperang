@@ -1,4 +1,4 @@
-# Paperang(喵喵机) Python API, now with Little Printer integration!
+# Paperang(喵喵机) Python API
 
 ### Requirements & Dependencies
 
