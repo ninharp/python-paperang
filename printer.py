@@ -43,6 +43,10 @@ def main():
         "-d", "--dither", action="store_true", 
         help="Use dithered processing for the image."
     )
+    parser.add_argument(
+        "-f", "--feed", type=int, default=1,
+        help="Number of feed lines after printing (default: 1)."
+    )
     args = parser.parse_args()
 
     try:
@@ -51,9 +55,10 @@ def main():
             printer.print_dithered_image(args.image_path)
         else:
             printer.print_image_file(args.image_path)
+            
+        printer.printer_hardware.sendFeedLineToBt(args.feed)
         
-        printer.printer_hardware.sendFeedLineToBt(1)
-        print(f"Successfully sent {args.image_path} to the printer{' with dithered processing' if args.dither else ''}.")
+        print(f"Successfully sent {args.image_path} to the printer{' with dithered processing' if args.dither else ''}. Feed lines: {args.feed}.")
         
     except Exception as e:
         print(f"Error: {e}")
