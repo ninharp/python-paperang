@@ -1,15 +1,17 @@
 # Paperang(喵喵机) Python API
 
-### Requirements & Dependencies
+## Requirements & Dependencies
 
-OS: OSX (tested on Catalina)/Linux (tested Debian Buster on a Raspberry Pi 4)  
-Python: 3.5-3.7 (tested)
+OS: Linux (tested Linux Arch)  
+Python: 3.12 (tested)
+
+Required arch packages: `python-pilkit python-scikit-image llvm`
 
 Required debian packages: `libbluetooth-dev libhidapi-dev libatlas-base-dev python3-llvmlite python3-numba python-llvmlite llvm-dev`
 
 Python Modules: install with `pip3 install -r requirements.txt`
 
-#### Set up and test your printer
+### Set up and test your printer
 You'll need python3 installed; check if you have it by typing `which python3` in Terminal or your favorite console application.
 
 1. Install necessary python modules:
@@ -26,13 +28,70 @@ If you've never paired your Paperang with your computer, you might get a dialog 
 
 5. If the test print was successful, the script will print out your device's MAC address on the console, as well as on the printer. You can enter that into the script to connect to your Paperang directly, avoiding the wait time for scanning for printers.
 
-### Establishing a connection
+## Printing via the printer.py Script
+The `printer.py` script allows you to print images using the Paperang printer. Below are the available command-line parameters:
+
+### Usage
+
+```sh
+python3 printer.py [image_path] [options]
+```
+
+#### Positional Arguments
+
+`image_path`: The path to the image file you want to print. This is a required argument.
+
+#### Optional Arguments
+
+`-d`, `--dither`: Use dithered processing for the image. If this flag is provided, the image will be processed with dithering before printing.
+
+Example: 
+```sh
+python3 printer.py /path/to/image.png --dither -a 00:11:22:33:44:55
+```
+
+`-f`, `--feed`: Specify the number of feed lines after printing. The default value is 1.
+
+Example: 
+```sh
+python3 printer.py /path/to/image.png -f 5 -a 00:11:22:33:44:55
+```
+
+#### Required Arguments
+
+`-a`, `--address`: Specify the Bluetooth address of the Paperang printer.
+
+Example: 
+```sh
+python3 printer.py /path/to/image.png -a 00:11:22:33:44:55
+```
+
+#### Examples
+Print an image with default settings:
+
+```sh
+python3 printer.py /path/to/image.png -a 00:11:22:33:44:55
+```
+
+Print an image with dithering:
+
+```sh
+python3 printer.py /path/to/image.png --dither -a 00:11:22:33:44:55
+```
+
+Print an image with 3 feed lines after printing:
+
+```sh
+python3 printer.py /path/to/image.png -f 3 -a 00:11:22:33:44:55
+```
+
+## Establishing a connection via API
 
 `BtManager()` Leave the parameters blank to search for nearby paperang devices
 
 `BtManager("AA:BB:CC:DD:EE:FF")` Calling with a specific MAC address skips searching for devices, saving time
 
-### Printing images
+## Printing images via API
 
 The printer's API only accepts binary images for printing, so we need to convert text to images on the client side.
 
@@ -44,7 +103,7 @@ mmj.sendImageToBt(img)
 mmj.disconnect()
 ```
 
-### Other Features
+## Other Features
 
 `registerCrcKeyToBt(key=123456)` Change the communication CRC32 KEY (not sure why this is necessary, logically, listening to this packet would allow you to get the key).
 
@@ -70,7 +129,7 @@ mmj.disconnect()
 
 There are actually quite a few operations. If you're interested, you can look at `const.py` and guess what they do.
 
-### Complaints
+## Complaints
 
 Why can't this thing have a multi-print feature? Printing at a lower temperature multiple times and then advancing the paper should allow for grayscale printing.
 
@@ -80,6 +139,6 @@ By the way, here are two chip models: `NUC123LD4BN0`, `STM32F071CBU6`, which see
 
 PS: This code is for non-commercial use only. If used for commercial purposes, please consult an expert.
 
-### Acknowledgement
+## Acknowledgement
 Thanks for all the reverse engineering work done by the original author of this project.
 
