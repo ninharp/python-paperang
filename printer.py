@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import hardware
 import image_data
 import skimage.io
@@ -27,11 +28,18 @@ class Paperang_Printer:
             self.printer_hardware.sendImageToBt(image_data.im2binimage2(path))
 
 if __name__=="__main__":
-    mmj=Paperang_Printer()
-    mmj.print_self_test()
-    # mmj.print_image_file("whatever")
-    # mmj.print_dithered_image("/Users/ktamas/Downloads/frame.png")
-    # mmj.print_dithered_image("/Users/ktamas/Pictures/hard-job-being-a-baby.jpeg")
-    # mmj.print_dithered_image("/Users/ktamas/Desktop/-km49qIJ_400x400.png")
-    # mmj.print_dithered_image("/Users/ktamas/Downloads/10827905_10152921795874452_6300515507948976079_o.jpg")
-    # mmj.print_dithered_image("/Users/ktamas/Downloads/10827905_10152921795874452_6300515507948976079_o.jpg")
+    if len(sys.argv) != 2:
+        print("Usage: printer.py /path/to/image.png")
+        sys.exit(1)
+
+    image_path = sys.argv[1]
+
+    try:
+        printer = Paperang_Printer()
+        printer.print_dithered_image(image_path)
+        printer.printer_hardware.sendFeedLineToBt(1)
+        print(f"Successfully sent {image_path} to the printer.")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
