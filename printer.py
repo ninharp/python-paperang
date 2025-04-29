@@ -3,6 +3,7 @@ import argparse
 import hardware
 import image_data
 import skimage as ski
+import sys
 
 class Paperang_Printer:
     def __init__(self, address=None):
@@ -70,10 +71,14 @@ def main():
         
         printer.printer_hardware.sendFeedLineToBt(args.feed)
         print(f"Successfully sent {args.image_path} to the printer{' with dithered processing' if args.dither else ''}. Feed lines: {args.feed}.")
+    except KeyboardInterrupt:
+        print("\nProcess interrupted by the user. Disconnecting...")
     except Exception as e:
         print(f"Error: {e}")
     finally:
         printer.disconnect()
+        print("Printer disconnected. Exiting...")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
