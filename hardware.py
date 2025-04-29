@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 # -*-coding:utf-8-*-
 
-import struct, zlib, logging
-from bluetooth import BluetoothSocket, find_service, RFCOMM, discover_devices
+import struct
+import zlib
+import logging
+import socket
 from const import BtCommandByte
-from platform import system #so we can tell which OS we're using
-import codecs
+from platform import system
 
 
 class Paperang:
@@ -13,216 +14,145 @@ class Paperang:
     padding_line = 300
     max_send_msg_length = 1536
     max_recv_msg_length = 1024
-    service_uuid = "00001101-0000-1000-8000-00805F9B34FB"
 
     def __init__(self, address=None):
         self.address = address
+        self.sock = None
         self.crckeyset = False
-        self.connected = True if self.connect() else False
 
     def connect(self):
-        if self.address is None and not self.scandevices():
+        """Connect to the Paperang printer using Classic Bluetooth."""
+        if not self.address:
+            raise ValueError("Bluetooth address is required to connect.")
+        try:
+            self.sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+            self.sock.connect((self.address, 1))  # Port 1 is typically used for SPP
+            self.sock.settimeout(60)
+            logging.info(f"Connected to {self.address}.")
+            self.registerCrcKeyToBt()
+            return True
+        except Exception as e:
+            logging.error(f"Failed to connect to {self.address}: {e}")
             return False
-        if not self.scanservices():
-            return False
-        logging.info("Service found. Connecting to \"%s\" on %s..." % (self.service["name"], self.service["host"]))
-        self.sock = BluetoothSocket(RFCOMM)
-        if system() == "Darwin":
-            self.sock.connect((self.service["host"].decode('UTF-8'), self.service["port"]))
-        else:
-            self.sock.connect((self.service["host"], self.service["port"]))
-        self.sock.settimeout(60)
-        logging.info("Connected.")
-        self.registerCrcKeyToBt()
-        return True
 
     def disconnect(self):
-        try:
-            self.sock.close()
-        except:
-            pass
-        logging.info("Disconnected.")
+        """Disconnect from the Paperang printer."""
+        if self.sock:
+            try:
+                self.sock.close()
+                logging.info("Disconnected.")
+            except Exception as e:
+                logging.error(f"Failed to disconnect: {e}")
 
-    def scandevices(self):
-        logging.warning("Searching for devices...\n"
-                        "This will take some time; consider specifing a mac address to avoid a scan.")
-        valid_names = ['MiaoMiaoJi', 'Paperang', 'Paperang_P2S']
-        nearby_devices = discover_devices(lookup_names=True)
-        valid_devices = list(filter(lambda d: len(d) == 2 and d[1] in valid_names, nearby_devices))
-        if len(valid_devices) == 0:
-            logging.error("Cannot find device with name %s." % " or ".join(valid_names))
-            return False
-        elif len(valid_devices) > 1:
-            logging.warning("Found multiple valid machines, the first one will be used.\n")
-            logging.warning("\n".join(valid_devices))
-        else:
-            if system() == "Darwin":
-                logging.warning(
-                    "Found a valid machine with MAC %s and name %s" % (valid_devices[0][0].decode('UTF-8'), valid_devices[0][1])
-                )
-                self.address = valid_devices[0][0].decode('UTF-8')
-            else:
-                logging.warning(
-                    "Found a valid machine with MAC %s and name %s" % (valid_devices[0][0], valid_devices[0][1])
-                )
-                self.address = valid_devices[0][0]
-        return True
+    def send_to_bt(self, data_bytes, control_command, need_reply=True):
+        """Send data to the printer."""
+        if not self.sock:
+            raise ConnectionError("Not connected to any device.")
 
-    def scanservices(self):
-        logging.info("Searching for services...")
-        if system() == "Darwin":
-            return self.scanservices_osx()
+        bytes_list = self.add_bytes_to_list(data_bytes)
+        for i, bytes_chunk in enumerate(bytes_list):
+            packet = self.pack_per_bytes(bytes_chunk, control_command, i)
+            self.sock.send(packet)
+            logging.info(f"Sent packet {i + 1}/{len(bytes_list)}.")
 
-        # Example find_service() output on raspbian buster:
-        # {'service-classes': ['1101'], 'profiles': [], 'name': 'Port', 'description': None,
-        #  'provider': None, 'service-id': None, 'protocol': 'RFCOMM', 'port': 1, 
-        #  'host': 'A1:B2:C3:D4:E5:F6'}
-        service_matches = find_service(uuid=self.service_uuid, address=self.address)
-        valid_service = list(filter(
-            lambda s: 'protocol' in s and 'name' in s and s['protocol'] == 'RFCOMM' and (s['name'] == 'SerialPort' or s['name'] == 'Port'),
-            service_matches
-        ))
-        print(valid_service[0])
-        if len(valid_service) == 0:
-            logging.error("Cannot find valid services on device with MAC %s." % self.address)
-            return False
-        logging.info("Found a valid service")
-        self.service = valid_service[0]
-        return True
-
-    def scanservices_osx(self):
-        # Example find_service() output on OSX 10.15.2:
-        # [{'host': b'A1:B2:C3:D4:E5:F6', 'port': 1, 'name': 'Port', 'description': None,
-        #  'provider': None, 'protocol': None, 'service-classes': [], 'profiles': [], 'service-id': None}]
-        service_matches = find_service(address=self.address)
-        # print("printing service matches...")
-        # print(service_matches)
-        # print("...done.")
-        valid_services = list(filter(
-            lambda s: 'name' in s and s['name'] == 'SerialPort',
-            service_matches
-        ))
-        if len(valid_services) == 0:
-            logging.error("Cannot find valid services on device with MAC %s." % self.address)
-            return False
-        self.service = valid_services[0]
-        return True        
-
-    def sendMsgAllPackage(self, msg):
-        # Write data directly to device
-        sent_len = self.sock.send(msg)
-        logging.info("Sending msg with length = %d..." % sent_len)
-
-    def crc32(self, content):
-        return zlib.crc32(content, self.crcKey if self.crckeyset else self.standardKey) & 0xffffffff
-
-    def packPerBytes(self, bytes, control_command, i):
-        result = struct.pack('<BBB', 2, control_command, i)
-        result += struct.pack('<H', len(bytes))
-        result += bytes
-        result += struct.pack('<I', self.crc32(bytes))
-        result += struct.pack('<B', 3)
-        return result
-
-    def addBytesToList(self, bytes):
-        length = self.max_send_msg_length
-        result = [bytes[i:i + length] for i in range(0, len(bytes), length)]
-        return result
-
-    def sendToBt(self, data_bytes, control_command, need_reply=True):
-        bytes_list = self.addBytesToList(data_bytes)
-        for i, bytes in enumerate(bytes_list):
-            tmp = self.packPerBytes(bytes, control_command, i)
-            self.sendMsgAllPackage(tmp)
         if need_reply:
             return self.recv()
 
     def recv(self):
-        # Here we assume that there is only one received packet.
-        raw_msg = self.sock.recv(self.max_recv_msg_length)
-        parsed = self.resultParser(raw_msg)
-        logging.info("Recv: " + codecs.encode(raw_msg, "hex_codec").decode())
-        logging.info("Received %d packets: " % len(parsed) + "".join([str(p) for p in parsed]))
-        return raw_msg, parsed
+        """Receive data from the printer."""
+        try:
+            data = self.sock.recv(self.max_recv_msg_length)
+            logging.info(f"Received data: {data}")
+            return data
+        except Exception as e:
+            logging.error(f"Failed to receive data: {e}")
+            return None
 
-    def resultParser(self, data):
-        base = 0
-        res = []
-        while base < len(data) and data[base] == '\x02':
-            class Info(object):
-                def __str__(self):
-                    return "\nControl command: %s(%s)\nPayload length: %d\nPayload(hex): %s" % (
-                        self.command, BtCommandByte.findCommand(self.command)
-                        , self.payload_length, codecs.encode(self.payload, "hex_codec")
-                    )
+    def crc32(self, content):
+        """Calculate CRC32 checksum."""
+        return zlib.crc32(content, self.crcKey if self.crckeyset else self.standardKey) & 0xffffffff
 
-            info = Info()
-            _, info.command, _, info.payload_length = struct.unpack('<BBBH', data[base:base + 5])
-            info.payload = data[base + 5: base + 5 + info.payload_length]
-            info.crc32 = data[base + 5 + info.payload_length: base + 9 + info.payload_length]
-            base += 10 + info.payload_length
-            res.append(info)
-        return res
+    def pack_per_bytes(self, bytes_chunk, control_command, i):
+        """Pack data into a format suitable for the printer."""
+        result = struct.pack('<BBB', 2, control_command, i)
+        result += struct.pack('<H', len(bytes_chunk))
+        result += bytes_chunk
+        result += struct.pack('<I', self.crc32(bytes_chunk))
+        result += struct.pack('<B', 3)
+        return result
+
+    def add_bytes_to_list(self, bytes_data):
+        """Split data into chunks for sending."""
+        length = self.max_send_msg_length
+        return [bytes_data[i:i + length] for i in range(0, len(bytes_data), length)]
 
     def registerCrcKeyToBt(self, key=0x6968634 ^ 0x2e696d):
+        """Register the CRC32 key with the printer."""
         logging.info("Setting CRC32 key...")
         msg = struct.pack('<I', int(key ^ self.standardKey))
-        self.sendToBt(msg, BtCommandByte.PRT_SET_CRC_KEY)
+        self.send_to_bt(msg, BtCommandByte.PRT_SET_CRC_KEY)
         self.crcKey = key
         self.crckeyset = True
         logging.info("CRC32 key set.")
 
     def sendPaperTypeToBt(self, paperType=0):
-        # My guess:
-        # paperType=0: normal paper
-        # paperType=1: official paper
+        """Set the paper type."""
         msg = struct.pack('<B', paperType)
-        self.sendToBt(msg, BtCommandByte.PRT_SET_PAPER_TYPE)
+        self.send_to_bt(msg, BtCommandByte.PRT_SET_PAPER_TYPE)
 
     def sendPowerOffTimeToBt(self, poweroff_time=0):
+        """Set the auto power-off time."""
         msg = struct.pack('<H', poweroff_time)
-        self.sendToBt(msg, BtCommandByte.PRT_SET_POWER_DOWN_TIME)
+        self.send_to_bt(msg, BtCommandByte.PRT_SET_POWER_DOWN_TIME)
 
     def sendImageToBt(self, binary_img):
+        """Send an image to the printer."""
         self.sendPaperTypeToBt()
-        # msg = struct.pack("<%dc" % len(binary_img), *map(bytes, binary_img))
-        msg = b"".join(map(lambda x: struct.pack("<c",x.to_bytes(1,byteorder="little")),binary_img))
-        # print(msg)
-        self.sendToBt(msg, BtCommandByte.PRT_PRINT_DATA, need_reply=False)
+        msg = b"".join(map(lambda x: struct.pack("<c", x.to_bytes(1, byteorder="little")), binary_img))
+        self.send_to_bt(msg, BtCommandByte.PRT_PRINT_DATA, need_reply=False)
         self.sendFeedLineToBt(self.padding_line)
 
     def sendSelfTestToBt(self):
+        """Send a self-test command to the printer."""
         msg = struct.pack('<B', 0)
-        self.sendToBt(msg, BtCommandByte.PRT_PRINT_TEST_PAGE)
+        self.send_to_bt(msg, BtCommandByte.PRT_PRINT_TEST_PAGE)
 
     def sendDensityToBt(self, density):
+        """Set the print density."""
         msg = struct.pack('<B', density)
-        self.sendToBt(msg, BtCommandByte.PRT_SET_HEAT_DENSITY)
+        self.send_to_bt(msg, BtCommandByte.PRT_SET_HEAT_DENSITY)
 
     def sendFeedLineToBt(self, length):
+        """Send a feed line command to the printer."""
         msg = struct.pack('<H', length)
-        self.sendToBt(msg, BtCommandByte.PRT_FEED_LINE)
+        self.send_to_bt(msg, BtCommandByte.PRT_FEED_LINE)
 
     def queryBatteryStatus(self):
+        """Query the battery status."""
         msg = struct.pack('<B', 1)
-        self.sendToBt(msg, BtCommandByte.PRT_GET_BAT_STATUS)
+        self.send_to_bt(msg, BtCommandByte.PRT_GET_BAT_STATUS)
 
     def queryDensity(self):
+        """Query the print density."""
         msg = struct.pack('<B', 1)
-        self.sendToBt(msg, BtCommandByte.PRT_GET_HEAT_DENSITY)
+        self.send_to_bt(msg, BtCommandByte.PRT_GET_HEAT_DENSITY)
 
     def sendFeedToHeadLineToBt(self, length):
+        """Send a feed-to-head-line command."""
         msg = struct.pack('<H', length)
-        self.sendToBt(msg, BtCommandByte.PRT_FEED_TO_HEAD_LINE)
+        self.send_to_bt(msg, BtCommandByte.PRT_FEED_TO_HEAD_LINE)
 
     def queryPowerOffTime(self):
+        """Query the auto power-off time."""
         msg = struct.pack('<B', 1)
-        self.sendToBt(msg, BtCommandByte.PRT_GET_POWER_DOWN_TIME)
+        self.send_to_bt(msg, BtCommandByte.PRT_GET_POWER_DOWN_TIME)
 
     def querySNFromBt(self):
+        """Query the serial number."""
         msg = struct.pack('<B', 1)
-        self.sendToBt(msg, BtCommandByte.PRT_GET_SN)
+        self.send_to_bt(msg, BtCommandByte.PRT_GET_SN)
 
     def queryHardwareInfo(self):
+        """Query the hardware information."""
         msg = struct.pack('<B', 1)
-        self.sendToBt(msg, BtCommandByte.PRT_GET_HW_INFO)
+        self.send_to_bt(msg, BtCommandByte.PRT_GET_HW_INFO)
